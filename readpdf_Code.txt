@@ -1,0 +1,213 @@
+Search tools don’t understand content. They match keywords. That’s not enough for:
+
+Extracting insights from scientific papers
+Summarizing legal contracts
+Comparing product specs
+That’s when I decided to build something smarter — a multimodal RAG AI that reads, understands, and answers questions from thousands of PDFs.
+
+Step 1: Structuring the Project Directory
+Organizing everything properly up front helped me scale this from 10 docs to 10,000.
+
+ai-doc-assistant/
+├── ingest/
+│   ├── extract_text.py
+│   ├── extract_images.py
+├── process/
+│   ├── chunk_text.py
+│   ├── embed_chunks.py
+├── index/
+│   └── vector_store.py
+├── backend/
+│   ├── qa_chain.py
+│   └── server.py
+├── interface/
+│   └── ui.py
+Each module had one responsibility.
+Ingest → Process → Index → Answer → Display.
+
+Step 2: Extracting Text From PDFs Using PyMuPDF
+Text is the gold mine. So I extracted it page by page, preserving metadata.
+
+import fitz
+
+def extract_text(file_path):
+    doc = fitz.open(file_path)
+    pages = []
+    for i, page in enumerate(doc):
+        text = page.get_text()
+        pages.append({
+            "file": file_path,
+            "page": i + 1,
+            "text": text
+        })
+    return pages
+This gave me full control: filenames, page references, and selective inclusion.
+
+Step 3: Extracting and Storing Diagrams From PDFs
+Visuals carry meaning — especially in research and product manuals.
+So I extracted all embedded images.
+
+def extract_images(pdf_path, output_dir):
+    doc = fitz.open(pdf_path)
+    for page_index in range(len(doc)):
+        images = doc[page_index].get_images(full=True)
+        for img_index, img in enumerate(images):
+            xref = images[img_index][0]
+            base_image = doc.extract_image(xref)
+            image_bytes = base_image["image"]
+            image_filename = f"{output_dir}/{page_index}_{img_index}.png"
+            with open(image_filename, "wb") as img_file:
+                img_file.write(image_bytes)
+Later, these diagrams were embedded using CLIP and stored alongside text.
+
+Step 4: Chunking Text With Overlap for RAG-Friendly Context
+Large LLMs can’t take full documents — so we chunk them.
+
+def chunk_text(text, size=500, overlap=100):
+    chunks = []
+    for i in range(0, len(text), size - overlap):
+        chunk = text[i:i + size]
+        chunks.append(chunk)
+    return chunks
+Overlap ensures that context doesn’t break between chunks.
+It’s essential for coherent answers.
+
+Step 5: Generating Embeddings for Text Chunks
+Now, I transformed the chunks into vectors using sentence-transformers.
+
+from sentence_transformers import SentenceTransformer
+
+model = SentenceTransformer('all-MiniLM-L6-v2')
+
+def embed_chunks(chunks):
+    return model.encode(chunks)
+These vectors represent meaning, not just keywords.
+So later, we can retrieve the most relevant concepts, even if phrased differently.
+
+Step 6: Building a Fast Vector Search Engine With FAISS
+I used FAISS to store and search embeddings efficiently.
+
+import faiss
+import numpy as np
+
+def build_index(embeddings):
+    dim = embeddings.shape[1]
+    index = faiss.IndexFlatL2(dim)
+    index.add(embeddings)
+    return index
+Once built, this allowed me to run 10,000+ doc searches in under a second.
+
+Step 7: Adding CLIP Embeddings for Image-Based Search
+To make the assistant multimodal, I indexed diagrams using CLIP.
+
+from transformers import CLIPProcessor, CLIPModel
+from PIL import Image
+
+clip_model = CLIPModel.from_pretrained("openai/clip-vit-base-patch32")
+processor = CLIPProcessor.from_pretrained("openai/clip-vit-base-patch32")
+
+def embed_image(image_path):
+    image = Image.open(image_path)
+    inputs = processor(images=image, return_tensors="pt")
+    with torch.no_grad():
+        image_features = clip_model.get_image_features(**inputs)
+    return image_features.squeeze().numpy()
+Now the bot could answer queries like “show me the process diagram for system reboot”.
+
+Step 8: Building the Retrieval + Answering Chain With LangChain
+Once the top documents were retrieved, I fed them into an LLM.
+
+from langchain.chains import RetrievalQA
+from langchain.vectorstores import FAISS
+from langchain.llms import Ollama
+
+retriever = FAISS.load_local("index", embeddings=model)
+llm = Ollama(model="mistral")
+
+qa = RetrievalQA.from_chain_type(llm=llm, retriever=retriever)
+Query it:
+
+qa.run("What’s the warranty coverage of Product X?")
+Boom — human-like answers with cited documents.
+
+Step 9: Citing Sources in Answers
+To increase trust, I appended sources to every answer.
+
+def format_response(answer, docs):
+    refs = "\n".join([f"{doc.metadata['file']} (p{doc.metadata['page']})" for doc in docs])
+    return f"{answer}\n\nSources:\n{refs}"
+This made it feel more like a lawyer than a chatbot.
+Every claim was traceable.
+
+Step 10: Creating a Local API for Integration
+I wrapped the whole pipeline in FastAPI:
+
+from fastapi import FastAPI
+from pydantic import BaseModel
+
+class Query(BaseModel):
+    question: str
+
+app = FastAPI()
+
+@app.post("/ask")
+def ask(query: Query):
+    response = qa.run(query.question)
+    return {"answer": response}
+I could now connect this backend to web apps, Slack, or even voice.
+
+Step 11: Building a Web UI With Gradio
+To demo it to clients and teammates, I created a slick UI:
+
+import gradio as gr
+
+def answer_question(q):
+    return qa.run(q)
+
+gr.Interface(fn=answer_question, inputs="text", outputs="text", title="AI PDF Assistant").launch()
+They asked real questions from company manuals — and the bot nailed it.
+
+Step 12: Handling File Uploads and Live Ingestion
+Users could drop new PDFs on the UI, and they were instantly processed and indexed.
+
+@app.post("/upload")
+async def upload_pdf(file: UploadFile):
+    save_path = f"./docs/{file.filename}"
+    with open(save_path, "wb") as f:
+        f.write(await file.read())
+    # Extract, chunk, embed, and update FAISS index
+This made the assistant self-updating.
+New docs = new knowledge.
+
+Step 13: Deploying It Locally With Ollama + Docker
+For full control, I containerized everything.
+
+Dockerfile:
+
+FROM python:3.10
+WORKDIR /app
+COPY . .
+RUN pip install -r requirements.txt
+CMD ["uvicorn", "backend.server:app", "--host", "0.0.0.0", "--port", "8000"]
+Now it runs on any laptop, without the cloud.
+
+Step 14: Adding Long-Term Memory With SQLite
+I gave the assistant memory:
+
+import sqlite3
+
+def save_interaction(question, answer):
+    conn = sqlite3.connect("history.db")
+    conn.execute("INSERT INTO log (q, a) VALUES (?, ?)", (question, answer))
+    conn.commit()
+Later, I used this to retrain the model and improve responses.
+
+Step 15: Final Thoughts — From Search to Reasoning
+This wasn’t just search. This was reasoning over documents, charts, and audio.
+It could:
+
+Compare product specs
+Summarize sections of a manual
+Find visuals from a paragraph
+Support users with personalized answers
+I didn’t just build a bot. I built an AI teammate.
