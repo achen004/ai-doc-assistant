@@ -52,26 +52,39 @@ cd ai-doc-assistant
 
 # Install dependencies
 pip install -r requirements.txt
+
+# Install and start Ollama (if not already installed)
+curl -fsSL https://ollama.ai/install.sh | sh
+ollama serve &
+ollama pull mistral
 ```
 
-### Usage
+### Quick Start
 
 ```bash
-# Run API Server
+# Option 1: Run everything with one command
+python run.py
+
+# Option 2: Run components separately
+# Terminal 1: Start backend
 uvicorn backend.server:app --host 0.0.0.0 --port 8000
 
-# Launch UI
+# Terminal 2: Start frontend  
 python interface/ui.py
+
+# Option 3: Run demo pipeline
+python main.py
 ```
 
 ### Docker Deployment
 
 ```bash
-# Build image
-docker build -t ai-doc-assistant .
+# Build and run with Docker Compose
+docker-compose up --build
 
-# Run container
-docker run -p 8000:8000 ai-doc-assistant
+# Or build image manually
+docker build -t ai-doc-assistant .
+docker run -p 8000:8000 -p 7860:7860 ai-doc-assistant
 ```
 
 ## Implementation Details

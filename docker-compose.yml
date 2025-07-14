@@ -1,0 +1,22 @@
+version: '3.8'
+
+services:
+  ai-doc-assistant:
+    build: .
+    ports:
+      - "8000:8000"  # FastAPI server
+      - "7860:7860"  # Gradio interface
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+      - ./config:/app/config
+    environment:
+      - PYTHONPATH=/app
+      - OLLAMA_HOST=0.0.0.0:11434
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
