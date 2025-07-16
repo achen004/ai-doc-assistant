@@ -4,14 +4,15 @@ A multimodal RAG (Retrieval-Augmented Generation) AI system that processes PDF d
 
 ## Features
 
-- **PDF Processing**: Extract text and images from PDF documents using PyMuPDF
+- **Document Processing**: Extract text and images from PDF and Word documents (PDF, DOC, DOCX)
 - **Multimodal Embeddings**: Support for both text and image-based queries using CLIP
 - **Vector Search**: FAISS-powered similarity search for efficient retrieval
 - **AI Question Answering**: LangChain integration with Ollama (Mistral model)
-- **Web Interface**: User-friendly Gradio interface
+- **Web Interface**: User-friendly Streamlit interface (Windows-compatible)
 - **Source Citation**: All answers include document references with file names and page numbers
-- **Live Ingestion**: Real-time PDF uploads and index updates
+- **Live Ingestion**: Real-time document uploads and index updates
 - **Interaction History**: SQLite database tracks all interactions
+- **Multi-format Support**: PDF, DOC, DOCX file processing
 
 ## Architecture
 

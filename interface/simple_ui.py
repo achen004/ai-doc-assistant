@@ -21,9 +21,18 @@ def upload_pdf(uploaded_file):
             with open(temp_path, "wb") as f:
                 f.write(uploaded_file.getbuffer())
             
+            # Determine content type
+            file_ext = os.path.splitext(uploaded_file.name)[1].lower()
+            content_types = {
+                '.pdf': 'application/pdf',
+                '.doc': 'application/msword',
+                '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+            }
+            content_type = content_types.get(file_ext, 'application/octet-stream')
+            
             # Send to backend
             with open(temp_path, "rb") as f:
-                files = {"file": (uploaded_file.name, f, "application/pdf")}
+                files = {"file": (uploaded_file.name, f, content_type)}
                 response = requests.post(f"{API_BASE_URL}/upload", files=files)
             
             # Clean up temp file
@@ -100,18 +109,18 @@ def main():
         st.header("📄 Upload Documents")
         
         uploaded_file = st.file_uploader(
-            "Choose a PDF file",
-            type="pdf",
-            help="Upload a PDF document to process"
+            "Choose a document file",
+            type=["pdf", "doc", "docx"],
+            help="Upload a PDF or Word document to process"
         )
         
         if st.button("Upload & Process", type="primary"):
             if uploaded_file:
-                with st.spinner("Processing PDF..."):
+                with st.spinner("Processing document..."):
                     result = upload_pdf(uploaded_file)
                 st.success(result)
             else:
-                st.error("Please select a PDF file first.")
+                st.error("Please select a document file first.")
     
     elif page == "Ask Questions":
         st.header("❓ Ask Questions")

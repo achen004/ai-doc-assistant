@@ -9,7 +9,7 @@ import tempfile
 import logging
 import sqlite3
 
-from ingest.pdf_extractor import PDFExtractor
+from ingest.document_extractor import DocumentExtractor
 from process.text_processor import TextProcessor
 from process.image_processor import ImageProcessor
 from index.vector_store import VectorStore
@@ -30,7 +30,7 @@ app.add_middleware(
 )
 
 # Initialize components
-pdf_extractor = PDFExtractor()
+document_extractor = DocumentExtractor()
 text_processor = TextProcessor()
 image_processor = ImageProcessor()
 vector_store = VectorStore()
@@ -119,18 +119,25 @@ async def health_check():
 
 
 @app.post("/upload")
-async def upload_pdf(file: UploadFile = File(...)):
+async def upload_document(file: UploadFile = File(...)):
     """
-    Upload and process a PDF file.
+    Upload and process a document file (PDF, DOC, DOCX).
     
     Args:
-        file: PDF file to process
+        file: Document file to process
         
     Returns:
         Processing results
     """
-    if not file.filename.endswith('.pdf'):
-        raise HTTPException(status_code=400, detail="Only PDF files are supported")
+    # Check supported formats
+    supported_extensions = ['.pdf', '.doc', '.docx']
+    file_ext = os.path.splitext(file.filename)[1].lower()
+    
+    if file_ext not in supported_extensions:
+        raise HTTPException(
+            status_code=400, 
+            detail=f"Unsupported file format. Supported formats: {', '.join(supported_extensions)}"
+        )
     
     try:
         # Save uploaded file
@@ -142,8 +149,8 @@ async def upload_pdf(file: UploadFile = File(...)):
             f.write(content)
         
         # Extract text and images
-        logger.info(f"Processing PDF: {file.filename}")
-        extraction_result = pdf_extractor.extract_text_and_images(save_path)
+        logger.info(f"Processing document: {file.filename} ({file_ext})")
+        extraction_result = document_extractor.extract_text_and_images(save_path)
         
         # Process text pages
         text_chunks = []
@@ -204,8 +211,8 @@ async def upload_pdf(file: UploadFile = File(...)):
         }
         
     except Exception as e:
-        logger.error(f"Error processing PDF: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Error processing PDF: {str(e)}")
+        logger.error(f"Error processing document: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error processing document: {str(e)}")
 
 
 @app.post("/ask")

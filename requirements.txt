@@ -4,8 +4,10 @@ uvicorn==0.24.0
 pydantic==2.5.0
 python-multipart==0.0.6
 
-# PDF processing
+# Document processing
 PyMuPDF==1.23.8
+python-docx==0.8.11
+pywin32==306
 
 # Machine learning and embeddings
 sentence-transformers==2.2.2
