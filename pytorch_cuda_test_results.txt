@@ -1,8 +1,0 @@
-PyTorch CUDA Test Results
-========================
-Date: locaraai
-PyTorch Version: 2.1.1+cu121
-CUDA Available: True
-CUDA Version: 12.1
-GPU Count: 1
-GPU 0: NVIDIA RTX 2000 Ada Generation Laptop GPU

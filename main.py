@@ -112,7 +112,7 @@ def main():
         print("   3. Or use the web interface: python interface/ui.py")
     
     print("\\n🚀 To start the web interface:")
-    print("   Backend: uvicorn backend.server:app --host 0.0.0.0 --port 8000")
+    print("   Backend: uvicorn backend.server:app --host 127.0.0.1 --port 8000")
     print("   Frontend: python interface/ui.py")
     
     print("\\n🐳 Or use Docker:")

@@ -2,13 +2,15 @@
 Quick run script to start the AI Document Assistant.
 
 This script starts both the backend server and the Gradio interface.
-"""
 
-import subprocess
-import sys
+Make sure "Ollama serve &" command is done in WSL
+"""
 import time
-import threading
 import os
+import subprocess
+import threading
+import sys
+import shutil
 
 def start_backend():
     """Start the FastAPI backend server."""
@@ -35,40 +37,66 @@ def start_frontend():
     
     subprocess.run([sys.executable, "interface/ui.py"], env=env)
 
+def run_ollama_command(args):
+    is_windows = os.name == 'nt'
+    is_wsl = False
+    if not is_windows:
+        try:
+            with open('/proc/version', 'r') as f:
+                if 'Microsoft' in f.read():
+                    is_wsl = True
+        except FileNotFoundError:
+            pass
+
+    if is_windows:
+        cmd = ['wsl', 'ollama'] + args
+    else:
+        cmd = ['ollama'] + args
+
+    if not is_windows and shutil.which('ollama') is None:
+        return None
+
+    try:
+        return subprocess.run(cmd, capture_output=True, text=True)
+    except FileNotFoundError:
+        return None
+
 def main():
     """Start both backend and frontend."""
     print("🤖 AI Document Assistant - Starting Services")
     print("=" * 50)
-    
-    # Check if Ollama is available (Windows-compatible)
-    try:
-        # Try to find ollama executable
-        ollama_cmd = "ollama.exe" if os.name == 'nt' else "ollama"
-        result = subprocess.run([ollama_cmd, "list"], capture_output=True, text=True, shell=True)
-        if result.returncode == 0:
-            if "mistral" not in result.stdout:
-                print("⚠️  Mistral model not found. Installing...")
-                subprocess.run([ollama_cmd, "pull", "mistral"], shell=True)
-        else:
-            raise FileNotFoundError
-    except (FileNotFoundError, subprocess.CalledProcessError):
+
+    # Check if Ollama is available (Windows-compatible and WSL-aware)
+    result = run_ollama_command(['list'])
+    if result is None or result.returncode != 0:
         print("⚠️  Ollama not found. Please install Ollama first.")
         print("   Visit: https://ollama.ai")
         print("   For Windows: Download and install from https://ollama.ai/download/windows")
         print("\n   Continuing without Ollama - some features may not work.")
-        # Don't return - let the user continue without Ollama
-    
+    else:
+        if "mistral" not in result.stdout.lower():
+            print("⚠️  Mistral model not found. Installing...")
+            pull_result = run_ollama_command(['pull', 'mistral'])
+            if pull_result is None or pull_result.returncode != 0:
+                print("⚠️  Failed to pull Mistral model.")
+            else:
+                print("✅  Mistral model installed successfully.")
+        else:
+            print("✅  Mistral model is already installed.")
+
     # Start backend in a separate thread
     backend_thread = threading.Thread(target=start_backend)
     backend_thread.daemon = True
     backend_thread.start()
-    
+
     # Start frontend in main thread
     try:
         start_frontend()
     except KeyboardInterrupt:
-        print("\\n🛑 Shutting down...")
+        print("\n🛑 Shutting down...")
         sys.exit(0)
 
 if __name__ == "__main__":
     main()
+
+#python run.py --server_name 0.0.0.0 --server_port 7860

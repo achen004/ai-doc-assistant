@@ -1,0 +1,15 @@
+#!/bin/bash
+
+# Get the first WSL IP address
+WSL_IP=$(hostname -I | awk '{print $1}')
+
+# Windows listens on localhost
+WIN_LISTEN_ADDRESS="127.0.0.1"
+
+# Port to forward
+PORT=11434
+
+# Run Windows PowerShell command to add port forwarding
+powershell.exe -Command "Start-Process netsh -ArgumentList 'interface portproxy add v4tov4 listenport=$PORT listenaddress=$WIN_LISTEN_ADDRESS connectport=$PORT connectaddress=$WSL_IP' -Verb runAs"
+
+echo "Port forwarding set: Windows 127.0.0.1:$PORT → WSL $WSL_IP:$PORT"

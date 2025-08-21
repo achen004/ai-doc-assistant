@@ -10,7 +10,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # API endpoint configuration
-API_BASE_URL = "http://localhost:8000"
+API_BASE_URL = "http://<WSLIP>:8000" #adjust accordingly
 
 
 def answer_question(question: str) -> str:
