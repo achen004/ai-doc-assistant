@@ -7,7 +7,7 @@ A multimodal RAG (Retrieval-Augmented Generation) AI system that processes PDF d
 - **Document Processing**: Extract text and images from PDF and Word documents (PDF, DOC, DOCX)
 - **Multimodal Embeddings**: Support for both text and image-based queries using CLIP
 - **Vector Search**: FAISS-powered similarity search for efficient retrieval
-- **AI Question Answering**: LangChain integration with Ollama (Mistral model)
+- **AI Question Answering**: LangChain integration with Ollama
 - **Web Interface**: User-friendly Streamlit interface (Windows-compatible)
 - **Source Citation**: All answers include document references with file names and page numbers
 - **Live Ingestion**: Real-time document uploads and index updates
@@ -30,7 +30,7 @@ ai-doc-assistant/
 - **PDF Processing**: PyMuPDF (fitz)
 - **Text Embeddings**: sentence-transformers (all-MiniLM-L6-v2)
 - **Image Embeddings**: CLIP (openai/clip-vit-base-patch32)
-- **Vector Database**: FAISS
+- **Vector Database**: LangChain's FAISS
 - **LLM Framework**: LangChain with Ollama
 - **API Framework**: FastAPI
 - **UI Framework**: Gradio
@@ -41,8 +41,8 @@ ai-doc-assistant/
 
 ### Prerequisites
 
-- Python 3.8+
-- Ollama installed with Mistral model
+- Python 3.9+
+- Ollama installed with Mistral model (llama3.2:1b if lower GPU settings)
 
 ### Installation
 
@@ -93,10 +93,6 @@ docker run -p 8000:8000 -p 7860:7860 ai-doc-assistant
 - **Text Chunking**: 500-character chunks with 100-character overlap
 - **Multimodal Search**: Supports both text and image queries
 - **Memory**: All interactions stored for continuous improvement
-
-## Current Status
-
-This repository contains the tutorial documentation and setup files. Implementation of the modular architecture is in progress.
 
 ## License
 
