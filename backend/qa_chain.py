@@ -291,6 +291,7 @@ class SimpleQAChain:
             logger.error(f"Error retrieving documents: {str(e)}")
             return []
     
+    #TODO: image output error; formatting required?
     def answer_question(self, question: str, search_results: List[Dict]) -> Dict[str, Any]:
         """
         Answer question using provided search results (for API compatibility).
