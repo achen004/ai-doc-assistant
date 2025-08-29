@@ -42,7 +42,14 @@ ai-doc-assistant/
 ### Prerequisites
 
 - Python 3.9+
-- Ollama installed with Mistral model (llama3.2:1b if lower GPU settings)
+- Ollama installed with Mistral model (tinyllama if lower GPU settings)
+
+set in ~/.bashrc
+export OLLAMA_KEEP_ALIVE=24h
+export OLLAMA_MAX_LOADED_MODELS=1
+export OLLAMA_FLASH_ATTENTION=1
+export OLLAMA_NUM_GPU=8
+export OLLAMA_NUM_THREAD=4
 
 ### Installation
 
@@ -57,7 +64,13 @@ pip install -r requirements.txt
 # Install and start Ollama (if not already installed)
 curl -fsSL https://ollama.ai/install.sh | sh
 ollama serve &
+
 ollama pull mistral
+-tinyllama
+-phi3:mini "phi3:mini-4k-instruct-q4_0"
+-gemma:2b "gemma:2b-instruct-q4_0"
+-qwen2:1.5b "codeqwen:1.5b-chat-q4_0"
+-llama3.2:1b
 ```
 
 ### Quick Start
@@ -90,7 +103,7 @@ docker run -p 8000:8000 -p 7860:7860 ai-doc-assistant
 
 ## Implementation Details
 
-- **Text Chunking**: 500-character chunks with 100-character overlap
+- **Text Chunking**: 300-character chunks with 25-character overlap [text_processor.py]
 - **Multimodal Search**: Supports both text and image queries
 - **Memory**: All interactions stored for continuous improvement
 
