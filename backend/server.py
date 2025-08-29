@@ -121,7 +121,7 @@ async def startup_event():
         text_processor = TextProcessor()
         image_processor = ImageProcessor()
         vector_store = VectorStore()
-        qa_chain = SimpleQAChain()
+        qa_chain = SimpleQAChain("tinyllama")
         
         # Load existing index
         logger.info("Loading vector store index...")
