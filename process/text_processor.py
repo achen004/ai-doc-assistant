@@ -14,10 +14,10 @@ class TextProcessor:
     
     def __init__(self, model_name: str = "all-MiniLM-L6-v2"):
         self.model = SentenceTransformer(model_name)
-        self.chunk_size = 500
-        self.chunk_overlap = 100
+        self.chunk_size = 300 #200-400 tokens
+        self.chunk_overlap = 25 #20-50 tokens
     
-    def chunk_text(self, text: str, size: int = 500, overlap: int = 100) -> List[str]:
+    def chunk_text(self, text: str, size: int = 300, overlap: int = 25) -> List[str]:
         """
         Chunk text into smaller pieces with overlap.
         
