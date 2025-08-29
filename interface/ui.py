@@ -5,13 +5,15 @@ import requests
 import json
 from typing import List, Dict, Any, Optional
 import logging
+import os
 
+qa_chain=None
+vector_store=None
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # API endpoint configuration
-API_BASE_URL = "http://<WSLIP>:8000" #adjust accordingly
-
+API_BASE_URL = "http://localhost:8000" #adjust accordingly
 
 def answer_question(question: str) -> str:
     """
@@ -28,7 +30,7 @@ def answer_question(question: str) -> str:
     
     try:
         payload = {"question": question}
-        response = requests.post(f"{API_BASE_URL}/ask", json=payload)
+        response = requests.post(f"{API_BASE_URL}/question", json=payload)
         
         if response.status_code == 200:
             result = response.json()
@@ -198,7 +200,7 @@ def create_interface():
                 with gr.Column(scale=2):
                     advanced_question = gr.Textbox(
                         label="Your Question",
-                        placeholder="Ask anything about your uploaded documents...",
+                        placeholder="Ask anything about your uploaded documents...be specific",
                         lines=3
                     )
                     
@@ -257,7 +259,7 @@ def create_interface():
         gr.Markdown("""
         ## 🚀 How to Use:
         1. **Upload**: Upload PDF documents using the Upload tab
-        2. **Ask**: Ask questions about your documents in the Questions tab
+        2. **Ask**: Ask specific questions about your documents in the Questions tab
         3. **Advanced Search**: Use the Advanced Search tab for more control
         4. **View Stats**: Check system statistics in the Statistics tab
         """)
@@ -270,7 +272,7 @@ if __name__ == "__main__":
     demo = create_interface()
     demo.launch(
         server_name="0.0.0.0",
-        server_port=7860,
+        server_port=7860,    #change as necessary
         share=False,
         debug=True
     )
