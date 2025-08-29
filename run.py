@@ -74,15 +74,17 @@ def main():
         print("   For Windows: Download and install from https://ollama.ai/download/windows")
         print("\n   Continuing without Ollama - some features may not work.")
     else:
-        if "mistral" not in result.stdout.lower():
-            print("⚠️  Mistral model not found. Installing...")
-            pull_result = run_ollama_command(['pull', 'mistral'])
-            if pull_result is None or pull_result.returncode != 0:
-                print("⚠️  Failed to pull Mistral model.")
+        models=['tinyllama','qwen2:1.5b','gemma:2b','mistral','llama3.2:1b']
+        for m in models:
+            if m not in result.stdout.lower(): 
+                print(f"⚠️{m} model not found. Installing...")
+                pull_result = run_ollama_command(['pull', 'mistral'])
+                if pull_result is None or pull_result.returncode != 0:
+                    print(f"⚠️  Failed to pull {m} model.")
+                else:
+                    print(f"✅  {m} model installed successfully.")
             else:
-                print("✅  Mistral model installed successfully.")
-        else:
-            print("✅  Mistral model is already installed.")
+                print(f"✅  {m} model is already installed.")
 
     # Start backend in a separate thread
     backend_thread = threading.Thread(target=start_backend)
