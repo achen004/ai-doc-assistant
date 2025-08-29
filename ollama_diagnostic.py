@@ -9,190 +9,96 @@
 
 import requests
 import json
-from langchain.llms import Ollama
 import time
+from langchain.llms import Ollama
+
+OLLAMA_BASE_URL = "http://localhost:11434"  # WSL port-forwarded URL
 
 def check_ollama_service():
-    """Check if Ollama service is running."""
+    """Check if Ollama service is running and list available models."""
     print("🔍 Checking Ollama service...")
-    
     try:
-        response = requests.get("http://127.0.0.1:11434/api/tags", timeout=10)
-        if response.status_code == 200:
-            print("✅ Ollama service is running")
-            
-            data = response.json()
-            models = data.get('models', [])
-            print(f"📦 Available models: {[model['name'] for model in models]}")
-            
-            return True, models
-        else:
-            print(f"❌ Ollama service responded with status code: {response.status_code}")
-            return False, []
-            
-    except requests.exceptions.ConnectionError:
-        print("❌ Cannot connect to Ollama service at http://127.0.0.1:11434")
-        print("💡 Make sure Ollama is running: ollama serve")
-        return False, []
-    
-    except requests.exceptions.Timeout:
-        print("❌ Ollama service is not responding (timeout)")
-        return False, []
-    
-    except Exception as e:
-        print(f"❌ Unexpected error checking Ollama: {str(e)}")
+        resp = requests.get(f"{OLLAMA_BASE_URL}/api/tags", timeout=10)
+        resp.raise_for_status()
+        data = resp.json()
+        models = [m['name'].split(':')[0] for m in data.get('models', [])]
+        print(f"✅ Ollama service is running. Available models: {models}")
+        return True, models
+    except requests.exceptions.RequestException as e:
+        print(f"❌ Cannot connect to Ollama service: {e}")
         return False, []
 
 
-def test_model_availability(model_name="mistral"):
-    """Test if a specific model is available."""
-    print(f"\n🔍 Testing model availability: {model_name}")
-    
+def test_model_generate(model_name):
+    """Test running a model using the correct /api/generate endpoint."""
+    print(f"\n🔍 Testing model '{model_name}' via HTTP API...")
+    payload = {
+        "model": model_name,
+        "prompt": "Hello, how are you?",
+        "max_tokens": 50
+    }
     try:
-        # Try to get model info
-        response = requests.get(f"http://127.0.0.1:11434/api/show", 
-                              json={"name": model_name}, 
-                              timeout=10)
-        
-        if response.status_code == 200:
-            print(f"✅ Model '{model_name}' is available")
+        resp = requests.post(f"{OLLAMA_BASE_URL}/api/generate", 
+                             headers={"Content-Type": "application/json"},
+                             data=json.dumps(payload),
+                             timeout=20)
+        if resp.status_code == 200:
+            result = resp.json()
+            output_text = result.get("output", [{}])[0].get("content", "")
+            print(f"✅ Model responded successfully: {output_text[:100]}{'...' if len(output_text) > 100 else ''}")
             return True
         else:
-            print(f"❌ Model '{model_name}' not found")
-            print(f"💡 Try running: ollama pull {model_name}")
+            print(f"❌ Model call failed: HTTP {resp.status_code}, {resp.text}")
             return False
-            
-    except Exception as e:
-        print(f"❌ Error checking model: {str(e)}")
+    except requests.exceptions.RequestException as e:
+        print(f"❌ Error calling model: {e}")
         return False
 
 
-def test_langchain_ollama(model_name="mistral"):
-    """Test LangChain Ollama integration."""
-    print(f"\n🔍 Testing LangChain Ollama integration with {model_name}...")
-    
+def test_langchain_ollama(model_name):
+    """Test LangChain Ollama wrapper."""
+    print(f"\n🔍 Testing LangChain Ollama integration with '{model_name}'...")
     try:
-        # Create Ollama instance
-        llm = Ollama(
-            base_url="http://127.0.0.1:11434",
-            model=model_name,
-            timeout=30  # Increase timeout
-        )
-        
-        # Test simple query
-        print("🧪 Testing simple query...")
+        llm = Ollama(base_url=OLLAMA_BASE_URL, model=model_name, timeout=30)
         start_time = time.time()
-        response = llm("Hello, how are you? Please respond briefly.")
+        resp = llm("Hello, how are you?")
         end_time = time.time()
-        
-        print(f"✅ LangChain integration working!")
-        print(f"⏱️  Response time: {end_time - start_time:.2f} seconds")
-        print(f"📝 Response: {response[:100]}{'...' if len(response) > 100 else ''}")
-        
+        print(f"✅ LangChain integration works! Response: {resp[:100]}{'...' if len(resp) > 100 else ''}")
+        print(f"⏱️  Response time: {end_time - start_time:.2f}s")
         return True
-        
     except Exception as e:
-        print(f"❌ LangChain Ollama test failed: {str(e)}")
-        
-        # Check if it's a connection issue
-        if "Connection" in str(e) or "connection" in str(e).lower():
-            print("💡 This looks like a connection issue. Check if:")
-            print("   - Ollama is running: ollama serve")
-            print("   - No firewall blocking port 11434")
-            print("   - Model is loaded: ollama run mistral")
-        
-        return False
-
-
-def test_model_performance(model_name="mistral"):
-    """Test model performance with longer query."""
-    print(f"\n🔍 Testing model performance with longer query...")
-    
-    try:
-        llm = Ollama(
-            base_url="http://127.0.0.1:11434",
-            model=model_name,
-            timeout=60  # Longer timeout for complex queries
-        )
-        
-        test_query = """
-        Based on this context: "The weather is sunny and warm today. 
-        People are enjoying outdoor activities in the park."
-        
-        Question: What is the weather like?
-        """
-        
-        print("🧪 Testing longer query with context...")
-        start_time = time.time()
-        response = llm(test_query)
-        end_time = time.time()
-        
-        print(f"✅ Performance test passed!")
-        print(f"⏱️  Response time: {end_time - start_time:.2f} seconds")
-        print(f"📝 Response: {response}")
-        
-        return True
-        
-    except Exception as e:
-        print(f"❌ Performance test failed: {str(e)}")
+        print(f"❌ LangChain Ollama test failed: {e}")
         return False
 
 
 def main():
-    """Run all diagnostic tests."""
     print("🚀 Ollama Diagnostic Script")
-    print("=" * 50)
-    
-    # Step 1: Check service
+    print("="*50)
+
     service_ok, models = check_ollama_service()
-    
     if not service_ok:
-        print("\n❌ Cannot proceed - Ollama service is not running")
-        print("\n🔧 To fix:")
-        print("1. Install Ollama from https://ollama.ai")
-        print("2. Start the service: ollama serve")
-        print("3. Pull a model: ollama pull mistral")
+        print("❌ Ollama service is not running. Start it with 'ollama serve'.")
         return
-    
-    # Step 2: Check model
-    model_name = "mistral"
-    if models:
-        # Use first available model if mistral not found
-        available_model_names = [model['name'].split(':')[0] for model in models]
-        if model_name not in available_model_names:
-            model_name = available_model_names[0]
-            print(f"ℹ️  Using available model: {model_name}")
-    
-    model_ok = test_model_availability(model_name)
-    
-    if not model_ok:
-        print(f"\n❌ Model '{model_name}' not available")
-        print(f"🔧 To fix: ollama pull {model_name}")
+
+    if not models:
+        print("❌ No models available. Pull a model with 'ollama pull mistral'.")
         return
-    
-    # Step 3: Test LangChain integration
-    langchain_ok = test_langchain_ollama(model_name)
-    
-    if not langchain_ok:
+
+    # Use the first available model
+    model_name = models[0]
+    print(f"ℹ️  Using model: {model_name}")
+
+    if not test_model_generate(model_name):
+        print("❌ Model generate test failed. Check the model and Ollama service.")
         return
-    
-    # Step 4: Test performance
-    perf_ok = test_model_performance(model_name)
-    
-    # Summary
-    print("\n" + "=" * 50)
-    print("📊 DIAGNOSTIC SUMMARY")
-    print("=" * 50)
-    print(f"Ollama Service: {'✅' if service_ok else '❌'}")
-    print(f"Model Available: {'✅' if model_ok else '❌'}")
-    print(f"LangChain Integration: {'✅' if langchain_ok else '❌'}")
-    print(f"Performance Test: {'✅' if perf_ok else '❌'}")
-    
-    if all([service_ok, model_ok, langchain_ok, perf_ok]):
-        print("\n🎉 All tests passed! Your Ollama setup should work with the QA chain.")
-    else:
-        print("\n⚠️  Some tests failed. Please address the issues above.")
+
+    if not test_langchain_ollama(model_name):
+        print("❌ LangChain integration test failed.")
+        return
+
+    print("\n🎉 All checks passed! Ollama is ready for QA chain usage.")
 
 
 if __name__ == "__main__":
     main()
+
