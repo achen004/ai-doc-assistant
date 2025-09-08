@@ -184,9 +184,36 @@ class VectorStore:
         
         results = []
         for score, idx in zip(scores[0], indices[0]):
-            if idx >= 0:  # Valid index
+            if idx >= 0:
                 result = self.image_metadata[idx].copy()
                 result['score'] = float(score)
+                
+                # Build meaningful content from available metadata
+                content_parts = []
+                
+                # Add filename/path
+                filename = result.get('filename', result.get('image_path', 'Unknown image'))
+                content_parts.append(f"Image: {filename}")
+                
+                # Add description if available
+                if 'description' in result:
+                    content_parts.append(f"Description: {result['description']}")
+                elif 'caption' in result:
+                    content_parts.append(f"Caption: {result['caption']}")
+                
+                # Add extracted text if available
+                if 'extracted_text' in result:
+                    content_parts.append(f"Text in image: {result['extracted_text']}")
+                
+                # Add other metadata
+                if 'page' in result:
+                    content_parts.append(f"Page: {result['page']}")
+                
+                if 'document_title' in result:
+                    content_parts.append(f"Document: {result['document_title']}")
+                
+                # Join all parts
+                result['content'] = ". ".join(content_parts)
                 results.append(result)
         
         return results
