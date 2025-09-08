@@ -349,15 +349,24 @@ async def ask_question(request: QuestionRequest):
             except Exception as e:
                 logger.error(f"Text search error: {str(e)}")
         
+            print(f"Search type: {search_type}")  # Debug
+    
         if search_type in ["image", "both"]:
             try:
+                print("Attempting image search...")  # Debug
                 image_embedding = image_processor.generate_text_embedding(question)
                 image_results = vector_store.search_images(image_embedding, k)
+                print(f"Found {len(image_results)} image results")  # Debug
             except Exception as e:
                 logger.error(f"Image search error: {str(e)}")
         
         # Combine results
         all_results = text_results + image_results
+
+        # Debug: Log final results
+        print(f"Total results: {len(all_results)}")
+        for i, result in enumerate(all_results[:3]):
+            print(f"Result {i}: {result.keys()}")
         
         # Sort by score (lower scores are better for L2 distance)
         all_results.sort(key=lambda x: x.get('score', float('inf')))
