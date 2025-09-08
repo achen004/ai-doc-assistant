@@ -15,6 +15,47 @@ logger = logging.getLogger(__name__)
 # API endpoint configuration
 API_BASE_URL = "http://localhost:8000" #adjust accordingly
 
+def format_response_with_images(result):
+    """Format API response to include images in Gradio."""
+    answer = result["answer"]
+    sources = result.get("sources", [])
+    
+    if not sources:
+        return answer
+    
+    # Add text sources
+    text_sources = []
+    image_sources = []
+    
+    for source in sources:
+        if any(key in source for key in ['image', 'image_path', 'image_url']):
+            image_sources.append(source)
+        else:
+            text_sources.append(source)
+    
+    # Format text sources
+    if text_sources:
+        answer += "\n\n**📚 Text Sources:**\n"
+        for i, source in enumerate(text_sources[:3], 1):
+            score = source.get('similarity_score', 0)
+            source_info = source.get('source', 'Unknown')
+            answer += f"{i}. {source_info} (Score: {score:.3f})\n"
+    
+    # Format image sources
+    if image_sources:
+        answer += "\n\n**🖼️ Related Images:**\n"
+        for i, source in enumerate(image_sources[:3], 1):
+            score = source.get('similarity_score', 0)
+            source_info = source.get('source', 'Unknown')
+            answer += f"{i}. {source_info} (Score: {score:.3f})\n"
+            
+            # Try to include image if path exists
+            image_path = source.get('image_path') or source.get('image') or source.get('image_url')
+            if image_path:
+                answer += f"   📎 Image: {image_path}\n"
+    
+    return answer
+
 def answer_question(question: str) -> str:
     """
     Simple function to answer questions using the QA chain.
@@ -29,18 +70,33 @@ def answer_question(question: str) -> str:
         return "Please enter a question."
     
     try:
-        payload = {"question": question}
+        payload = {
+            "question": question,
+            "search_type": "both",  # Changed from "text" to "both" for images
+            "k": 5
+        }
+        
         response = requests.post(f"{API_BASE_URL}/question", json=payload)
         
         if response.status_code == 200:
             result = response.json()
-            return result["answer"]
-        else:
-            error_msg = response.json().get('detail', 'Unknown error')
-            return f"❌ Error: {error_msg}"
-    
+            
+            # Debug: Log what we're getting
+            print(f"API Response: {result}")  # Debug
+            
+            answer = result["answer"]
+            
+            # Check if sources contain images
+            if "sources" in result and result["sources"]:
+                print(f"Found {len(result['sources'])} sources")  # Debug
+                for i, source in enumerate(result["sources"]):
+                    print(f"Source {i}: {source.keys()}")  # Debug
+                    if 'image' in source or 'image_path' in source:
+                        print(f"Found image in source {i}")  # Debug
+            
+            return format_response_with_images(result)
+        
     except Exception as e:
-        logger.error(f"Error asking question: {str(e)}")
         return f"❌ Error: {str(e)}"
 
 
@@ -123,6 +179,62 @@ def ask_question(question: str, search_type: str, k: int):
     except Exception as e:
         logger.error(f"Error asking question: {str(e)}")
         return f"❌ Error: {str(e)}", ""
+
+def ask_question_with_images(question: str, search_type: str, k: int):
+    """
+    Ask question and return answer, sources, and images separately.
+    """
+    if not question.strip():
+        return "Please enter a question.", "", []
+    
+    try:
+        payload = {
+            "question": question,
+            "search_type": search_type,
+            "k": k
+        }
+        
+        response = requests.post(f"{API_BASE_URL}/question", json=payload)
+        
+        if response.status_code == 200:
+            result = response.json()
+            
+            # Extract answer
+            answer = result["answer"]
+            
+            # Extract sources and images
+            sources_text = ""
+            image_paths = []
+            text_sources = []
+            
+            for source in result.get("sources", []):
+                score = source.get('similarity_score', 0)
+                source_info = source.get('source', 'Unknown')
+                
+                # Check if this source contains an image
+                image_path = source.get('image_path') or source.get('image') or source.get('image_url')
+                
+                if image_path and search_type in ["image", "both"]:
+                    # This is an image source
+                    if os.path.exists(image_path):
+                        image_paths.append(image_path)
+                    sources_text += f"🖼️ Image: {source_info} (Score: {score:.3f})\n"
+                    sources_text += f"   Path: {image_path}\n\n"
+                else:
+                    # This is a text source
+                    text_sources.append(source)
+                    content_preview = source.get('content', '')[:200] + "..." if len(source.get('content', '')) > 200 else source.get('content', '')
+                    sources_text += f"📄 Text: {source_info} (Score: {score:.3f})\n"
+                    sources_text += f"   Preview: {content_preview}\n\n"
+            
+            return answer, sources_text, image_paths[:5]  # Limit to 5 images
+            
+        else:
+            error_detail = response.json().get('detail', 'Unknown error')
+            return f"❌ API Error ({response.status_code}): {error_detail}", "", []
+    
+    except Exception as e:
+        return f"❌ Error: {str(e)}", "", []
 
 
 def get_system_stats():
@@ -207,7 +319,7 @@ def create_interface():
                     with gr.Row():
                         search_type = gr.Radio(
                             choices=["text", "image", "both"],
-                            value="text",
+                            value="both",  # Changed default to "both"
                             label="Search Type"
                         )
                         k_slider = gr.Slider(
@@ -223,20 +335,32 @@ def create_interface():
                 with gr.Column(scale=3):
                     advanced_answer_output = gr.Textbox(
                         label="Answer",
-                        lines=10,
+                        lines=8,
                         interactive=False
                     )
                     
                     sources_output = gr.Textbox(
                         label="Sources",
-                        lines=8,
+                        lines=6,
                         interactive=False
                     )
+                    
+                    # Add image gallery for displaying found images
+                    images_output = gr.Gallery(
+                        label="Related Images",
+                        show_label=True,
+                        elem_id="gallery",
+                        columns=2,
+                        rows=2,
+                        height="300px",
+                        allow_preview=True
+                    )
             
+            # Update the click handler
             advanced_ask_btn.click(
-                fn=ask_question,
+                fn=ask_question_with_images,  # Use the new function
                 inputs=[advanced_question, search_type, k_slider],
-                outputs=[advanced_answer_output, sources_output]
+                outputs=[advanced_answer_output, sources_output, images_output]  # Add images_output
             )
         
         with gr.Tab("📊 Statistics"):
